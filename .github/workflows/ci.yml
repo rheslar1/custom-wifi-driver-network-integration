@@ -13,7 +13,14 @@ jobs:
         run: cmake -S . -B build
       - name: Build
         run: cmake --build build
-      - name: Run starter executable
-        run: ./build/$(basename "$PWD" | tr '-' '_')
+      - name: Run Wi-Fi integration executable
+        run: ./build/custom_wifi_driver_network_integration --nominal
+      - name: Run expected failure scenarios
+        run: |
+          ! ./build/custom_wifi_driver_network_integration --bad-cross
+          ! ./build/custom_wifi_driver_network_integration --bad-dts
+          ! ./build/custom_wifi_driver_network_integration --missing-firmware
+          ./build/custom_wifi_driver_network_integration --weak-link
+          ! ./build/custom_wifi_driver_network_integration --socket-fail
       - name: CTest
         run: ctest --test-dir build --output-on-failure

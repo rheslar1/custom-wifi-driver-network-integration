@@ -1,63 +1,67 @@
-#include <array>
+#include "wifi_integration/WifiIntegration.hpp"
+
 #include <iostream>
-#include <string_view>
+#include <stdexcept>
+#include <string>
 
-class IReadinessRule {
- public:
-  virtual ~IReadinessRule() = default;
-  virtual bool passes(std::string_view evidenceTarget) const = 0;
-  virtual std::string_view name() const = 0;
-};
+namespace {
 
-class RequiredEvidenceRule final : public IReadinessRule {
- public:
-  bool passes(std::string_view evidenceTarget) const override {
-    return !evidenceTarget.empty();
+void printUsage(const char* programName) {
+  std::cout << "Usage: " << programName << " [scenario]\n\n"
+            << "Scenarios:\n"
+            << "  --nominal           Accepted driver build and network integration\n"
+            << "  --missing-firmware  Firmware load failure after module insertion\n"
+            << "  --bad-dts           Device-tree compatible mismatch\n"
+            << "  --weak-link         Associated interface with weak RSSI warning\n"
+            << "  --socket-fail       Host socket echo validation failure\n"
+            << "  --bad-cross         Unsupported cross compiler prefix\n"
+            << "  --help              Show this help text\n";
+}
+
+std::string scenarioFromOption(const std::string& option) {
+  if (option == "--nominal") {
+    return "nominal";
+  }
+  if (option == "--missing-firmware") {
+    return "missing-firmware";
+  }
+  if (option == "--bad-dts") {
+    return "bad-dts";
+  }
+  if (option == "--weak-link") {
+    return "weak-link";
+  }
+  if (option == "--socket-fail") {
+    return "socket-fail";
+  }
+  if (option == "--bad-cross") {
+    return "bad-cross";
+  }
+  return {};
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+  const std::string option = argc > 1 ? argv[1] : "--nominal";
+  if (option == "--help") {
+    printUsage(argv[0]);
+    return 0;
   }
 
-  std::string_view name() const override {
-    return "RequiredEvidenceRule";
-  }
-};
-
-struct ProjectProfile {
-  std::string_view title;
-  std::string_view summary;
-  std::string_view evidenceTarget;
-  std::array<std::string_view, 9> tags;
-};
-
-constexpr ProjectProfile profile{
-  "Custom Wi-Fi Driver Compilation & Network Integration",
-  "Kernel-module and network-stack project that cross-compiles Wi-Fi driver support, updates device tree integration, and validates socket traffic with a host PC.",
-  "Kernel module workflow, network interface bring-up, device-tree awareness, and user-space C networking validation.",
-  {
-    "C++17",
-    "C++ Design Patterns",
-    "SOLID",
-    "Linux kernel",
-    "Wi-Fi driver",
-    "Kernel module",
-    "Device tree",
-    "Cross-compilation",
-    "Sockets"
-  }
-};
-
-int main() {
-  const RequiredEvidenceRule readinessRule;
-
-  std::cout << profile.title << '\n';
-  std::cout << "Summary: " << profile.summary << '\n';
-  std::cout << "Evidence target: " << profile.evidenceTarget << '\n';
-  std::cout << "Readiness rule: " << readinessRule.name() << '\n';
-  std::cout << "SOLID marker: C++17 strategy interface with replaceable readiness rule" << '\n';
-  std::cout << "Stack:";
-
-  for (std::size_t index = 0; index < profile.tags.size(); ++index) {
-    std::cout << ' ' << profile.tags[index] << (index + 1U == profile.tags.size() ? "" : ",");
+  const std::string scenario = scenarioFromOption(option);
+  if (scenario.empty()) {
+    printUsage(argv[0]);
+    return 1;
   }
 
-  std::cout << '\n';
-  return readinessRule.passes(profile.evidenceTarget) ? 0 : 1;
+  try {
+    const auto report = wifi_integration::runScenario(scenario);
+    wifi_integration::TextReportWriter writer(std::cout);
+    writer.write(report);
+    return report.accepted ? 0 : 2;
+  } catch (const std::exception& exception) {
+    std::cerr << "wifi integration error: " << exception.what() << '\n';
+    return 1;
+  }
 }

@@ -4,9 +4,9 @@ Kernel-module and network-stack project that cross-compiles Wi-Fi driver support
 
 ## Portfolio Purpose
 
-This repository is an Embedded Systems project scaffold for the Rheslar portfolio. It is designed to become a hardware-backed project with build output, validation logs, and reviewable implementation evidence.
+This repository implements a host-testable model of a custom Wi-Fi driver integration workflow. It does not require a kernel tree during CI, but it models the evidence expected from a real bring-up: cross-compiling a `.ko`, validating exported symbols, applying a device-tree overlay, loading firmware, registering a `cfg80211` PHY, bringing `wlan0` up, associating to an AP, and proving socket traffic against a host PC.
 
-All generated Embedded Systems repos are C++17-first and are framed around C++ design patterns and SOLID design principles.
+The implementation is C++17-first and uses design patterns and SOLID boundaries so the simulated CI model can be replaced by target adapters later.
 
 ## Stack
 
@@ -29,13 +29,42 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+Failure-mode scenarios:
+
+```bash
+./build/custom_wifi_driver_network_integration --bad-cross
+./build/custom_wifi_driver_network_integration --bad-dts
+./build/custom_wifi_driver_network_integration --missing-firmware
+./build/custom_wifi_driver_network_integration --weak-link
+./build/custom_wifi_driver_network_integration --socket-fail
+```
+
 ## Implementation Slices
 
-- C++17 starter executable that exposes the project identity, stack, and validation target.
-- Small strategy-style readiness check that keeps the scaffold aligned with C++ design patterns.
-- Architecture document with control boundaries, data flow, safety assumptions, and evidence plan.
-- CTest smoke test that keeps source, docs, and CI files present as the repo grows.
-- GitHub Actions workflow for configure, build, executable smoke run, and repository validation.
+- C++17 model for kernel module build configuration, device-tree overlay, network profile, and observed bring-up state.
+- Strategy validation rules for cross-compile config, device-tree binding, module/firmware load, Wi-Fi association, and socket traffic.
+- Composite validator and runner facade that produce deterministic pass/fail integration reports.
+- Linux command-plan generator covering `make -C`, `dtc`, firmware/module install, `modprobe`, `insmod`, `ip`, `wpa_supplicant`, and `iperf3`.
+- JSON-style telemetry payload and text report suitable for CI logs and portfolio evidence.
+- CTest coverage for nominal bring-up, bad cross compiler, bad DTS compatible string, missing firmware, weak RSSI warning, socket failure, and report evidence.
+
+## C++17 Design Patterns and SOLID
+
+| Pattern | Implementation |
+| --- | --- |
+| Strategy | `IIntegrationRule` implementations validate each integration gate independently. |
+| Composite | `CompositeRuleSet` evaluates the ordered rule chain. |
+| Adapter | `ICommandPlanBuilder` and `ITelemetryEncoder` isolate command generation and output encoding. |
+| Facade | `WifiIntegrationRunner` is the single orchestration entry point. |
+| DTO / Value Object | Build, overlay, network, observation, issue, and report structs keep data explicit. |
+
+SOLID mapping:
+
+- Single Responsibility: build config, DTS, network profile, observations, validation rules, command plan, and report writing are separate.
+- Open/Closed: new rules can be added without editing the runner.
+- Liskov Substitution: production command-plan or telemetry encoders can replace the host implementations.
+- Interface Segregation: rule, command-plan, and telemetry interfaces are narrow.
+- Dependency Inversion: orchestration depends on interfaces rather than concrete Linux commands.
 
 ## Evidence Target
 

@@ -7,9 +7,17 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 enable_testing()
 
+add_library(wifi_integration_core
+  src/WifiIntegration.cpp
+)
+target_include_directories(wifi_integration_core PUBLIC include)
+target_compile_options(wifi_integration_core PRIVATE -Wall -Wextra -Wpedantic)
+
 add_executable(${PROJECT_NAME} src/main.cpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE wifi_integration_core)
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 
-add_executable(profile_tests tests/ProfileTests.cpp)
-target_compile_options(profile_tests PRIVATE -Wall -Wextra -Wpedantic)
-add_test(NAME profile_tests COMMAND profile_tests)
+add_executable(wifi_integration_tests tests/WifiIntegrationTests.cpp)
+target_link_libraries(wifi_integration_tests PRIVATE wifi_integration_core)
+target_compile_options(wifi_integration_tests PRIVATE -Wall -Wextra -Wpedantic)
+add_test(NAME wifi_integration_tests COMMAND wifi_integration_tests)
